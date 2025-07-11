@@ -1,6 +1,8 @@
+streamlit
 pandas
 numpy
+statsmodels
 plotly
 openpyxl
-statsmodels
-matplotlib
+kaleido
+Pillow
