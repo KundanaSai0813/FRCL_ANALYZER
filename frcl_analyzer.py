@@ -4,11 +4,7 @@ import numpy as np
 import statsmodels.api as sm
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl.drawing.image import Image as XLImage
 from plotly.graph_objects import Figure, Scatter, Bar
-import plotly.io as pio
-from PIL import Image
-import io
 import os
 
 st.set_page_config(page_title="FRCL Analyzer", layout="centered")
@@ -59,6 +55,25 @@ if uploaded_file is not None:
             'Barcode': 'nunique'
         }).reset_index().rename(columns={'Barcode': 'Number of Tires'})
 
+        output_excel = "output_analysis.xlsx"
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            selected_data.to_excel(writer, sheet_name='Selected Data', index=False)
+            range_count_df.to_excel(writer, sheet_name='Range Count', index=False)
+
+        wb = load_workbook(output_excel)
+        for sheet in ['Selected Data', 'Range Count']:
+            ws = wb[sheet]
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                for cell in row:
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    cell.font = Font(name='Calibri', size=11)
+                    if cell.row == 1:
+                        cell.fill = PatternFill(start_color='FFD700' if sheet == 'Selected Data' else '1E90FF',
+                                                end_color='FFD700' if sheet == 'Selected Data' else '1E90FF',
+                                                fill_type='solid')
+                        cell.font = Font(bold=True, color='FFFFFF')
+        wb.save(output_excel)
+
         # Plots
         fig1 = Figure()
         fig1.add_trace(Bar(x=grouped['DeltaEZ1'], y=grouped['Number of Tires'], name='Number of Tires', marker=dict(color='steelblue')))
@@ -75,43 +90,6 @@ if uploaded_file is not None:
         fig3.add_trace(Bar(x=range_count_df['DeltaEZ1_Range'], y=range_count_df['Number of Tires'], name='Number of Tires', marker=dict(color='green', opacity=0.7)))
         fig3.update_layout(title='Number of Tires in DeltaEZ1 Ranges (0.5 Interval)', xaxis_title='DeltaEZ1 Range', yaxis_title='Number of Tires')
 
-        output_excel = "output_analysis.xlsx"
-
-        # Save only the "Range Count" sheet
-        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            range_count_df.to_excel(writer, sheet_name='Range Count', index=False)
-
-        # Load workbook and worksheet
-        wb = load_workbook(output_excel)
-        ws = wb['Range Count']
-
-        # Apply formatting
-        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-            for cell in row:
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-                cell.font = Font(name='Calibri', size=11)
-                if cell.row == 1:
-                    cell.fill = PatternFill(start_color='1E90FF', end_color='1E90FF', fill_type='solid')
-                    cell.font = Font(bold=True, color='FFFFFF')
-
-        # Function to insert Plotly plots into Excel
-        def insert_plot(ws, fig, anchor_cell):
-            img_bytes = pio.to_image(fig, format='png', width=800, height=400, engine='kaleido')
-            img = Image.open(io.BytesIO(img_bytes))
-            temp_img = "temp_plot.png"
-            img.save(temp_img)
-            xl_img = XLImage(temp_img)
-            ws.add_image(xl_img, anchor_cell)
-            os.remove(temp_img)
-
-        # Insert plots into the Excel sheet
-        insert_plot(ws, fig1, "D2")
-        insert_plot(ws, fig2, "D22")
-        insert_plot(ws, fig3, "D42")
-
-        wb.save(output_excel)
-
-        # Display on Streamlit
         st.success("✅ Analysis complete. See plots and download below.")
 
         st.plotly_chart(fig1, use_container_width=True)
