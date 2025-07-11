@@ -4,5 +4,4 @@ numpy
 statsmodels
 plotly
 openpyxl
-kaleido
-Pillow
+
